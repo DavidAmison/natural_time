@@ -79,9 +79,9 @@ d_positions = {
         }
 
 
-async def convert(s):
+def convert(s):
     '''Convert all numbers in the string to digits'''
-    numbers = await extract_num(s)
+    numbers = extract_num(s)
     #Is there any millions, thousands or hundreds?
     i = 0
     mi = -1
@@ -110,14 +110,14 @@ async def convert(s):
         i += 1
     
     total = 0
-    total += await convert_prefix(numbers[0:mi]) * 1000000 if mi>-1 else 0
-    total += await convert_prefix(numbers[mi+1:th]) * 1000 if th>-1 else 0
-    total += await convert_prefix(numbers[th+1:hu]) * 100 if hu>-1 else 0
-    total += await convert_prefix(numbers[hu+1:])
+    total += convert_prefix(numbers[0:mi]) * 1000000 if mi>-1 else 0
+    total += convert_prefix(numbers[mi+1:th]) * 1000 if th>-1 else 0
+    total += convert_prefix(numbers[th+1:hu]) * 100 if hu>-1 else 0
+    total += convert_prefix(numbers[hu+1:])
     
     return total
-          
-async def convert_prefix(numbers):       
+
+def convert_prefix(numbers):       
     total = 0
     last = 0
     for num in numbers:
@@ -139,7 +139,7 @@ async def convert_prefix(numbers):
 #Read character by character from the right until something matches, store that number
 #empty string and continue from that point. 
 
-async def extract_num(s):
+def extract_num(s):
     '''
     Returns all numbers in a string as a list in the order that they appear.
     Note that it does not interpret the meaning but simply writes the numbers: e.g
