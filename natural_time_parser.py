@@ -117,14 +117,17 @@ _date_words = {
         'at':['at','at'],
         'on':['on','on'],
         'for':['len','for'],
-        'untill':['len','to'],
-        'till':['len','to'],
-        'to':['len','to'],
+        'untill':['len','till'],
+        'till':['len','till'],
         'a':['one','a'],
         'an':['one','a'],
         'midnight':['num','12am'],
         'midday':['num','12pm'],
         'noon':['num','12pm'],
+        'past':['num','past'],
+        'to':['num','to'],
+        'half':['num','30'],
+        'quarter':['num','15'],
         }
 
 class natural_time_parser():
@@ -180,6 +183,8 @@ class natural_time_parser():
            
         
     def parse_string(self,s):
+        print(s)
+        print(_date_words['past'])
         #First make the string all lower case, then split up all the words
         s = s.lower()
         #convert all numerical text to numbers (one => 1, second => 2nd etc
@@ -196,6 +201,7 @@ class natural_time_parser():
             elif item[0] in self._tags:
                 date_tagged.append(item)        
         #Cycle through everything and try to interpret the meaning of all the numbers
+        print(date_tagged)
         self.interpret_num(date_tagged)
         #Now the numbers are turned to proper numbers and the words are tagged try to understand
         self.interpret_tags(date_tagged)
@@ -207,18 +213,15 @@ class natural_time_parser():
         
         date = date_list[0]
         
-        result = str(date.day)+'/'+str(date.month)+'/'+str(date.year)+' '+str(date.hour)+":"+str(date.minute)
-        #put result in a file   
-        #with open(str(self.log),'a') as log_file:
-        #    log_file.write(result+' '+s+'\n')
-        
-        return result
+        return date
        
     def contains_digit(self,st):
-        try:
-            return any(c.isdigit() for c in st)
-        except Exception:
-            return False 
+        if isinstance(st,str):
+            try:
+                return any(c.isdigit() for c in st)
+            except Exception:
+                return False 
+        else: return False
     
     def interpret_num(self,st_tagged):
         '''
@@ -230,6 +233,17 @@ class natural_time_parser():
             if item[0] != 'num':
                 i += 1
                 continue
+            #Special case where 'past' and 'to have been found
+            if item[1] == 'past':
+                #Check for number before and after
+                if st_tagged[i-1][0] == 'num' and st_tagged[i+1][0] == 'num':
+                    #This puts the time in a format that will be recognized
+                    item = ['num',st_tagged[i+1][1]+':'+st_tagged[i-1][1]]
+            elif item[1] == 'to':
+                if st_tagged[i-1][0] == 'num' and st_tagged[i+1][0] == 'num':
+                    #This puts the time in a format that will be recognized
+                    minutes = str(60 - int(st_tagged[i-1][1]))
+                    item = ['num',st_tagged[i+1][1]+':'+minutes] 
             #Check if the number is some form of time or date.
             time = time_finder(item[1])
             date = date_finder(item[1])
@@ -388,8 +402,8 @@ class natural_time_parser():
     
     def day_tag(self,st_tagged,i):
         '''
-        Includes all the days of the week. It is assumed that this is equivalent to
-        next ... e.g Monday is assumed to mean next Monday.
+        Includes all the days of the week. It is assumed this is equivalent to
+        this DAY
         '''
         self.byweekday = st_tagged[i][1]
         del st_tagged[i]
@@ -437,27 +451,20 @@ class natural_time_parser():
                 else:
                     print('Unexpected format: last')
             except IndexError:
-                print('Unexpected format: last')
-                           
+                print('Unexpected format: last')                
             #Done analysis, now remove
             del st_tagged[i]
-        elif word == 'nxt' or word == 'this':
+        elif word == 'nxt':
             #Next word should be one of: year, month, week, [month], [day]
             try:
                 next_what = st_tagged[i+1]
                 if next_what[0] == 'day':
-                    date = (self.now + timedelta(days=7)).replace(hour=23,minute=59,second=59)                
-                    self.count = 1
-                    #self.until = date
+                    self.dtstart = (self.now + timedelta(days=1)).replace(hour=0,minute=0,second=0)  
+                    self.count = 1                    
                     self.byweekday = next_what[1]
                     del st_tagged[i+1]
                 elif next_what[0] == 'mth':
-                    date = self.now
-                    if date.month == 12:
-                        date.replace(day=31,month=1,year=date.year+1,hour=0,minutes=0,second=0)
-                        self.dtstart = date
-                    else:
-                        self.bymonth = next_what[1]
+                    self.bymonth = next_what[1]
                     del st_tagged[i+1]
                 elif next_what[1] == 'yr':
                     #For some reason there is no byyear thing so need to change start date
@@ -465,18 +472,18 @@ class natural_time_parser():
                     self.dtstart = self.dtstart.replace(day = 1, month = 1, year = self.now.year+1, hour = 0, minute = 0, second = 0)
                     del st_tagged[i+1]
                 elif next_what[1] == 'mth':
-                    
                     date = self.now
                     if date.month < 12:
                         self.bymonth = date.month + 1
                     else:
                         self.bymonth = 1
-                    print('Next Month',self.bymonth)
                     del st_tagged[i+1]
                 elif next_what[1] == 'wk':
-                    date = self.now + timedelta(days=7)
-                    self.byyear = date.isocalendar()[0]
-                    self.byweekno = (self.now + timedelta(days=7)).isocalendar()[1]
+                    date = self.now.isocalendar()
+                    how_many_days = 7 - date[2] #Gets the day
+                    self.dtstart = (self.now + timedelta(days=how_many_days)).replace(hour=0,minute=0,second=0)
+                    self.until = self.dtstart + timedelta(days=7)    
+                    self.count = None
                     del st_tagged[i+1]
                 elif next_what[1] == 'day':
                     date = self.now + timedelta(day=1)
@@ -490,6 +497,39 @@ class natural_time_parser():
                 print('Unexpected format: next/this')
             
             del st_tagged[i] 
+        elif word == 'this':
+            #Next word should be one of: year, month, week, [month], [day]
+            try:
+                this_what = st_tagged[i+1]
+                if this_what[0] == 'day':               
+                    self.count = 1
+                    self.byweekday = this_what[1]
+                    del st_tagged[i+1]
+                elif this_what[0] == 'mth':
+                    self.bymonth = this_what[1]
+                    del st_tagged[i+1]
+                elif this_what[1] == 'yr':
+                    #For some reason there is no byyear thing so need to change end date
+                    self.until = self.now.replace(day = 31, month = 12, hour = 23, minute = 59, second = 59)
+                    self.count = None
+                    del st_tagged[i+1]
+                elif this_what[1] == 'mth':
+                    date = self.now
+                    self.until = date.replace(day = calendar.monthrange(self.now.year,self.now.month)[1], hour = 23, minute = 59, second = 59)
+                    self.count = None
+                    del st_tagged[i+1]
+                elif this_what[1] == 'wk':
+                    self.until = self.now + timedelta(days=7)
+                    self.count = None
+                    del st_tagged[i+1]
+                elif this_what[1] == 'day':
+                    self.until = self.now.replace(hour=23,minute=59,second=59)
+                    self.count = None
+                    del st_tagged[i+1]
+                else:
+                    print('Unexpected format: next/this')
+            except IndexError:
+                print('Unexpected format: next/this')
         elif word == 'evy':            
             del st_tagged[i]
         return
@@ -504,7 +544,7 @@ class natural_time_parser():
     def len_tag(self,st_tagged,i):
         '''
         Interprets items with the 'len' tag which includes the words 'for'
-        and 'to'
+        and 'till'
         '''
         word = st_tagged[i][1]
         if word == 'for':
@@ -547,7 +587,7 @@ class natural_time_parser():
             
             del st_tagged[i+1]                
                 
-        elif word == 'to':
+        elif word == 'till':
             #TODO add functionality to consider number before and after
             del st_tagged[i]
             if st_tagged[i+1][0] == 'num':     
