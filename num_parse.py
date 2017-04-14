@@ -28,8 +28,6 @@ d_numbers = {
         'seventy':70,
         'eighty':80,
         'ninety':90,
-        #'a':1,
-        #'an':1,
         'one':1,
         'two':2,
         'three':3,

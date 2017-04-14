@@ -1,4 +1,4 @@
-# natural_time v0.1.5
+# natural_time v0.1.6
 A parser for understanding date-times written in a variety of formats
 
 WARNING: Currently in Alpha Development!!!
@@ -10,6 +10,6 @@ This package can be installed using: pip install natural_time
 How to use:
   1) Import the package using: import natural_time
   2) Run the function: natural_time.natural_time("Your_String_Here")
-  3) Thats it (the natural_time function returns the date as a string in the format d/m/y h:m
+  3) Thats it (the natural_time function returns the date as datetime object)
 
 If you find examples of phrases that don't interpret correcly raise an issue and I'll work on incorporating it, you are welcome to also make contributions to the code.
