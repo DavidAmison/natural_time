@@ -183,8 +183,6 @@ class natural_time_parser():
            
         
     def parse_string(self,s):
-        print(s)
-        print(_date_words['past'])
         #First make the string all lower case, then split up all the words
         s = s.lower()
         #convert all numerical text to numbers (one => 1, second => 2nd etc
@@ -201,7 +199,6 @@ class natural_time_parser():
             elif item[0] in self._tags:
                 date_tagged.append(item)        
         #Cycle through everything and try to interpret the meaning of all the numbers
-        print(date_tagged)
         self.interpret_num(date_tagged)
         #Now the numbers are turned to proper numbers and the words are tagged try to understand
         self.interpret_tags(date_tagged)
@@ -233,7 +230,7 @@ class natural_time_parser():
             if item[0] != 'num':
                 i += 1
                 continue
-            #Special case where 'past' and 'to have been found
+            #Special case where 'past' and 'to' have been found
             if item[1] == 'past':
                 #Check for number before and after
                 if st_tagged[i-1][0] == 'num' and st_tagged[i+1][0] == 'num':
@@ -244,14 +241,28 @@ class natural_time_parser():
                     #This puts the time in a format that will be recognized
                     minutes = str(60 - int(st_tagged[i-1][1]))
                     item = ['num',st_tagged[i+1][1]+':'+minutes] 
+            #Special case where the number is a year (previous word a month and/or > 1000)
+            try:
+                num = int(item[1])
+                if num > 1000 and (st_tagged[i-1][0] == 'mth' or st_tagged[i+1][0] == 'mth'):
+                    date = ['date',[None,None,num]] 
+                    st_tagged[i] = date
+                    i += 1
+                    continue
+            except Exception:
+                pass
             #Check if the number is some form of time or date.
             time = time_finder(item[1])
             date = date_finder(item[1])
             #Interpret the time or date
             if time != None:
                 st_tagged[i] = time
+                i += 1
+                continue
             elif date != None:
                 st_tagged[i] = date
+                i += 1
+                continue
             i += 1
     
     def interpret_tags(self,st_tagged):
@@ -326,7 +337,7 @@ class natural_time_parser():
             if self.now.year < new_year:
                 self.dtstart = self.dtstart.replace(year=new_year,month=1,day=1,hour=0,minute=0,second=0)
                 #TODO feedback when event is in the past
-        del st_tagged[i]
+        st_tagged[i] = [None,None]
         return
     
     def at_tag(self,st_tagged,i):
@@ -335,18 +346,14 @@ class natural_time_parser():
         In this case time is assumed so we check the following 'word' for a number
         or time.
         '''
-        if st_tagged[i+1][0] == 'num':
-            #Assume that it refers to an hour
-            self.byhour = int(st_tagged[i+1][1])
-            #Check that it is correct am or pm
-            if self.morning == False:
-                if self.byhour < 12:
-                    self.byhour += 12
-            del st_tagged[i+1]
-        elif st_tagged[i+1][0] == 'tm':
-            #This can be ignored as it will be consumed at another point.
+        try:
+            number = int(st_tagged[i+1][1])
+            if number < 24:
+                time = ['tm',[number,0,0,None]]
+            st_tagged[i+1] = time
+        except Exception:
             pass
-        del st_tagged[i]
+        st_tagged[i] = [None,None]
         
         return
             
@@ -359,12 +366,15 @@ class natural_time_parser():
         self.byhour = st_tagged[i][1][0]
         self.byminute = st_tagged[i][1][1]
         self.bysecond = st_tagged[i][1][2]
+        self.morning = st_tagged[i][1][3] if st_tagged[i][1][3] != 0 else None
         #Check that it matches correct AM/PM
         if self.morning == False and self.byhour < 12:
                 self.byhour += 12
         elif self.morning == True and self.byhour >= 12:
             self.byhour -= 12
-        del st_tagged[i]
+        elif self.morning == None and self.byhour <= 6:
+            self.byhour += 12
+        st_tagged[i] = [None,None]
         
         return
         
@@ -395,9 +405,9 @@ class natural_time_parser():
                 pass
             elif st_tagged[i][1] == 'yr':
                 pass
-            del st_tagged[i]
-            del st_tagged[i-1]
-        del st_tagged[i]
+            st_tagged[i] = [None,None]
+            st_tagged[i-1] = [None,None]
+        st_tagged[i] = [None,None]
         return
     
     def day_tag(self,st_tagged,i):
@@ -406,12 +416,12 @@ class natural_time_parser():
         this DAY
         '''
         self.byweekday = st_tagged[i][1]
-        del st_tagged[i]
+        st_tagged[i] = [None,None]
         return
     
     def mth_tag(self,st_tagged,i):
         self.bymonth = st_tagged[i][1]
-        del st_tagged[i]
+        st_tagged[i] = [None,None]
         return
     
     def rel_tag(self,st_tagged,i):
@@ -444,16 +454,16 @@ class natural_time_parser():
                 if last_what[0] == 'day':
                     self.byweekday = last_what[1]
                     self.bymonthday = -1
-                    del st_tagged[i+1]
+                    st_tagged[i+1] = [None,None]
                 elif last_what[1] == 'day':
                     self.bymonthday = -1
-                    del st_tagged[i+1]
+                    st_tagged[i+1] = [None,None]
                 else:
                     print('Unexpected format: last')
             except IndexError:
                 print('Unexpected format: last')                
             #Done analysis, now remove
-            del st_tagged[i]
+            st_tagged[i] = [None,None]
         elif word == 'nxt':
             #Next word should be one of: year, month, week, [month], [day]
             try:
@@ -462,41 +472,41 @@ class natural_time_parser():
                     self.dtstart = (self.now + timedelta(days=1)).replace(hour=0,minute=0,second=0)  
                     self.count = 1                    
                     self.byweekday = next_what[1]
-                    del st_tagged[i+1]
+                    st_tagged[i+1] = [None,None]
                 elif next_what[0] == 'mth':
                     self.bymonth = next_what[1]
-                    del st_tagged[i+1]
+                    st_tagged[i+1] = [None,None]
                 elif next_what[1] == 'yr':
                     #For some reason there is no byyear thing so need to change start date
                     self.byyear = self.now.year + 1
                     self.dtstart = self.dtstart.replace(day = 1, month = 1, year = self.now.year+1, hour = 0, minute = 0, second = 0)
-                    del st_tagged[i+1]
+                    st_tagged[i+1] = [None,None]
                 elif next_what[1] == 'mth':
                     date = self.now
                     if date.month < 12:
                         self.bymonth = date.month + 1
                     else:
                         self.bymonth = 1
-                    del st_tagged[i+1]
+                    st_tagged[i+1] = [None,None]
                 elif next_what[1] == 'wk':
                     date = self.now.isocalendar()
                     how_many_days = 7 - date[2] #Gets the day
                     self.dtstart = (self.now + timedelta(days=how_many_days)).replace(hour=0,minute=0,second=0)
                     self.until = self.dtstart + timedelta(days=7)    
                     self.count = None
-                    del st_tagged[i+1]
+                    st_tagged[i+1] = [None,None]
                 elif next_what[1] == 'day':
                     date = self.now + timedelta(day=1)
                     self.byyear = date.year
                     self.bymonth = self.month
                     self.byday = date.weekday()
-                    del st_tagged[i+1]
+                    st_tagged[i+1] = [None,None]
                 else:
                     print('Unexpected format: next/this')
             except IndexError:
                 print('Unexpected format: next/this')
             
-            del st_tagged[i] 
+            st_tagged[i] = [None,None] 
         elif word == 'this':
             #Next word should be one of: year, month, week, [month], [day]
             try:
@@ -504,34 +514,34 @@ class natural_time_parser():
                 if this_what[0] == 'day':               
                     self.count = 1
                     self.byweekday = this_what[1]
-                    del st_tagged[i+1]
+                    st_tagged[i+1] = [None,None]
                 elif this_what[0] == 'mth':
                     self.bymonth = this_what[1]
-                    del st_tagged[i+1]
+                    st_tagged[i+1] = [None,None]
                 elif this_what[1] == 'yr':
                     #For some reason there is no byyear thing so need to change end date
                     self.until = self.now.replace(day = 31, month = 12, hour = 23, minute = 59, second = 59)
                     self.count = None
-                    del st_tagged[i+1]
+                    st_tagged[i+1] = [None,None]
                 elif this_what[1] == 'mth':
                     date = self.now
                     self.until = date.replace(day = calendar.monthrange(self.now.year,self.now.month)[1], hour = 23, minute = 59, second = 59)
                     self.count = None
-                    del st_tagged[i+1]
+                    st_tagged[i+1] = [None,None]
                 elif this_what[1] == 'wk':
                     self.until = self.now + timedelta(days=7)
                     self.count = None
-                    del st_tagged[i+1]
+                    st_tagged[i+1] = [None,None]
                 elif this_what[1] == 'day':
                     self.until = self.now.replace(hour=23,minute=59,second=59)
                     self.count = None
-                    del st_tagged[i+1]
+                    st_tagged[i+1] = [None,None]
                 else:
                     print('Unexpected format: next/this')
             except IndexError:
                 print('Unexpected format: next/this')
         elif word == 'evy':            
-            del st_tagged[i]
+            st_tagged[i] = [None,None]
         return
     
     
@@ -554,13 +564,13 @@ class natural_time_parser():
                 if st_tagged[i+2][0] == 'time':
                     if st_tagged[i+2][1] == 'sec':
                         self.length = n
-                        del st_tagged[i+2]
+                        st_tagged[i+2] = [None,None]
                     elif st_tagged[i+2][1] == 'min':
                         self.length = n * 60
-                        del st_tagged[i+2]
+                        st_tagged[i+2] = [None,None]
                     elif st_tagged[i+2][1] == 'hr':
                         self.length = n * 3600
-                        del st_tagged[i+2]
+                        st_tagged[i+2] = [None,None]
                 else:
                     #Assume hours intended
                     self.length = n * 3600
@@ -573,26 +583,26 @@ class natural_time_parser():
                 if st_tagged[i+2][0] == 'time':
                     if st_tagged[i+2][1] == 'sec':
                         self.length = n
-                        del st_tagged[i+2]
+                        st_tagged[i+2] = [None,None]
                     elif st_tagged[i+2][1] == 'min':
                         self.length = n * 60
-                        del st_tagged[i+2]
+                        st_tagged[i+2] = [None,None]
                     elif st_tagged[i+2][1] == 'hr':
                         self.length = n * 3600
-                        del st_tagged[i+2]
+                        st_tagged[i+2] = [None,None]
                 else:
                     #Assume hours intended
                     self.length = n * 3600
                 pass
             
-            del st_tagged[i+1]                
+            st_tagged[i+1] = [None,None]                
                 
         elif word == 'till':
             #TODO add functionality to consider number before and after
-            del st_tagged[i]
+            st_tagged[i] = [None,None]
             if st_tagged[i+1][0] == 'num':     
                 pass
             elif st_tagged[i+1][0] == 'tm':
                 pass
         
-        del st_tagged[i]
+        st_tagged[i] = [None,None]
