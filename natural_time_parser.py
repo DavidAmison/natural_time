@@ -183,8 +183,6 @@ class natural_time_parser():
            
         
     def parse_string(self,s):
-        print(s)
-        print(_date_words['past'])
         #First make the string all lower case, then split up all the words
         s = s.lower()
         #convert all numerical text to numbers (one => 1, second => 2nd etc
@@ -201,7 +199,6 @@ class natural_time_parser():
             elif item[0] in self._tags:
                 date_tagged.append(item)        
         #Cycle through everything and try to interpret the meaning of all the numbers
-        print(date_tagged)
         self.interpret_num(date_tagged)
         #Now the numbers are turned to proper numbers and the words are tagged try to understand
         self.interpret_tags(date_tagged)
@@ -233,7 +230,7 @@ class natural_time_parser():
             if item[0] != 'num':
                 i += 1
                 continue
-            #Special case where 'past' and 'to have been found
+            #Special case where 'past' and 'to' have been found
             if item[1] == 'past':
                 #Check for number before and after
                 if st_tagged[i-1][0] == 'num' and st_tagged[i+1][0] == 'num':
@@ -244,14 +241,28 @@ class natural_time_parser():
                     #This puts the time in a format that will be recognized
                     minutes = str(60 - int(st_tagged[i-1][1]))
                     item = ['num',st_tagged[i+1][1]+':'+minutes] 
+            #Special case where the number is a year (previous word a month and/or > 1000)
+            try:
+                num = int(item[1])
+                if num > 1000 and (st_tagged[i-1][0] == 'mth' or st_tagged[i+1][0] == 'mth'):
+                    date = ['date',[None,None,num]] 
+                    st_tagged[i] = date
+                    i += 1
+                    continue
+            except Exception:
+                pass
             #Check if the number is some form of time or date.
             time = time_finder(item[1])
             date = date_finder(item[1])
             #Interpret the time or date
             if time != None:
                 st_tagged[i] = time
+                i += 1
+                continue
             elif date != None:
                 st_tagged[i] = date
+                i += 1
+                continue
             i += 1
     
     def interpret_tags(self,st_tagged):
