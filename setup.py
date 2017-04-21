@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import setup
 from codecs import open
 from os import path
 
@@ -10,12 +10,12 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='natural_time',
-    version='0.1.7',
+    version='0.2.0',
     description='Tool for understanding dates and times',
     long_description=long_description,
     url='https://github.com/DavidAmison/natural_time',
     author='David Amison',
     author_email='david.amison20@gmail.com',
-    packages=find_packages(exclude=['contrib', 'docs', 'tests']),
+    packages=['natural_time'],
     install_requires=['python-dateutil', 'pathlib', 'textblob'],
 )

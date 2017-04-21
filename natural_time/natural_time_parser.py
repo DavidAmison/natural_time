@@ -18,17 +18,14 @@ Possible formats for date:
     2) Run through the text systematically analysing each 'word' and it's significance
     3) Return the best possible understanding
 """
-import os
-from pathlib import Path
-
 from datetime import datetime, timedelta
 import calendar
 from dateutil import rrule
 
-import num_parse
-from dates import date_finder, time_finder
+from . import num_parse
+from .dates import date_finder, time_finder
 
-from textblob import TextBlob, Word
+from textblob import TextBlob
 
 #A dictionary of words that can be understood for mapping words of the same meaning and grouping
 _date_words = {
@@ -248,7 +245,7 @@ class natural_time_parser():
                     if st_tagged[i-1][1] == 'half':
                         item = ['num',st_tagged[i+1][1]+':'+'30']
                     elif st_tagged[i-1][1] == 'qtr':
-                        item = ['num',st_tagged[i+1][1]+':'+'30']
+                        item = ['num',st_tagged[i+1][1]+':'+'15']
                     else:
                         item = ['num',st_tagged[i+1][1]+':'+st_tagged[i-1][1]]
             elif item[1] == 'to':
@@ -262,12 +259,12 @@ class natural_time_parser():
                         minutes = str(60 - int(st_tagged[i-1][1]))
                     hour = str(int(st_tagged[i+1][1]) - 1)
                     item = ['num',hour+':'+minutes] 
-            elif item[1] == 'half' and st_tagged[i+1][i] == 'num':
+            elif item[1] == 'half' and st_tagged[i+1][0] == 'num':
                 hour = str(st_tagged[i+1][1])
                 minutes = '30'
                 item = ['num',hour+':'+minutes]
                 
-            #Special case where the number is a year (previous word a month and/or > 1000) or dat ( <=32 next to a month)
+            #Special case where the number is a year (previous word a month and/or > 1000) or day ( <=32 next to a month) or hour (next to am/pm)
             try:
                 num = int(item[1])
                 if num > 1000 and (st_tagged[i-1][0] == 'mth' or st_tagged[i+1][0] == 'mth'):
@@ -279,6 +276,8 @@ class natural_time_parser():
                     date = ['date',[num,None,None]]
                     st_tagged[i] = date
                     i += 1
+                elif num <= 23 and (st_tagged[i+1][1] == 'am' or st_tagged[i+1][1] == 'pm'):
+                    item = ['num',str(num)+':00']
             except Exception:
                 pass
             #Special case where the number is a day (<31 and following or previous word is a month)
