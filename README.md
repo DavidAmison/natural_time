@@ -1,4 +1,4 @@
-# natural_time v0.1.9
+# natural_time v0.2.0
 A parser for understanding date-times written in a variety of formats
 
 WARNING: Currently in Alpha Development!!!
