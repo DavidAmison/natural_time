@@ -126,8 +126,8 @@ _date_words = {
         'noon':['num','12pm'],
         'past':['num','past'],
         'to':['num','to'],
-        'half':['num','30'],
-        'quarter':['num','15'],
+        'half':['num','half'],
+        'quarter':['num','qtr'],
         }
 
 class natural_time_parser():
@@ -148,8 +148,8 @@ class natural_time_parser():
         self.dtstart = datetime.now()       #Start from today
         self.interval = 1
         self.wkstart = None
-        self.count = 1                      #Returns only one instance as default
-        self.until = None
+        self.count = None                      #Returns only one instance as default
+        self.until = self.dtstart + timedelta(days=365*4+1)
         self.bysetpos = None
         self.byyear = None
         self.bymonth = None
@@ -202,8 +202,18 @@ class natural_time_parser():
         self.interpret_num(date_tagged)
         #Now the numbers are turned to proper numbers and the words are tagged try to understand
         self.interpret_tags(date_tagged)
-        #Are there any 'rel' tags in the words. e.g every, tomorrow, next
         
+        #Check the bymonthday value and bymonth value are compatible
+        if self.bymonth != None and self.bymonthday != None:
+            #Which year are we probably looking at
+            if self.byyear == None:
+                if self.now.month > self.bymonth or (self.now.month == self.bymonth and self.bymonthday < self.now.day):
+                    self.byyear = 2018
+                else:
+                    self.byyear = 2017                    
+            max_days = calendar.monthrange(self.byyear,self.bymonth)[1]
+            if self.bymonthday > max_days and self.bymonthday != 29:
+                return []
         date_list = list(rrule.rrule(freq=self.freq, dtstart=self.dtstart, interval=self.interval, wkst=self.wkstart, count=self.count, until=self.until,
         bysetpos=self.bysetpos, bymonth=self.bymonth, bymonthday=self.bymonthday, byyearday=self.byyearday, byweekno=self.byweekno,
         byweekday=self.byweekday, byhour=self.byhour, byminute=self.byminute, bysecond=self.bysecond))       
@@ -234,14 +244,30 @@ class natural_time_parser():
             if item[1] == 'past':
                 #Check for number before and after
                 if st_tagged[i-1][0] == 'num' and st_tagged[i+1][0] == 'num':
-                    #This puts the time in a format that will be recognized
-                    item = ['num',st_tagged[i+1][1]+':'+st_tagged[i-1][1]]
+                    #Check for half and qtr
+                    if st_tagged[i-1][1] == 'half':
+                        item = ['num',st_tagged[i+1][1]+':'+'30']
+                    elif st_tagged[i-1][1] == 'qtr':
+                        item = ['num',st_tagged[i+1][1]+':'+'30']
+                    else:
+                        item = ['num',st_tagged[i+1][1]+':'+st_tagged[i-1][1]]
             elif item[1] == 'to':
                 if st_tagged[i-1][0] == 'num' and st_tagged[i+1][0] == 'num':
                     #This puts the time in a format that will be recognized
-                    minutes = str(60 - int(st_tagged[i-1][1]))
-                    item = ['num',st_tagged[i+1][1]+':'+minutes] 
-            #Special case where the number is a year (previous word a month and/or > 1000)
+                    if st_tagged[i-1][1] == 'half':
+                        minutes = '30'
+                    elif st_tagged[i-1][1] == 'qtr':
+                        minutes = '45'
+                    else:
+                        minutes = str(60 - int(st_tagged[i-1][1]))
+                    hour = str(int(st_tagged[i+1][1]) - 1)
+                    item = ['num',hour+':'+minutes] 
+            elif item[1] == 'half' and st_tagged[i+1][i] == 'num':
+                hour = str(st_tagged[i+1][1])
+                minutes = '30'
+                item = ['num',hour+':'+minutes]
+                
+            #Special case where the number is a year (previous word a month and/or > 1000) or dat ( <=32 next to a month)
             try:
                 num = int(item[1])
                 if num > 1000 and (st_tagged[i-1][0] == 'mth' or st_tagged[i+1][0] == 'mth'):
@@ -249,8 +275,14 @@ class natural_time_parser():
                     st_tagged[i] = date
                     i += 1
                     continue
+                elif num <= 32 and (st_tagged[i-1][0] == 'mth' or st_tagged[i+1][0] == 'mth'):
+                    date = ['date',[num,None,None]]
+                    st_tagged[i] = date
+                    i += 1
             except Exception:
                 pass
+            #Special case where the number is a day (<31 and following or previous word is a month)
+            
             #Check if the number is some form of time or date.
             time = time_finder(item[1])
             date = date_finder(item[1])
@@ -296,7 +328,7 @@ class natural_time_parser():
             if w[0] == 'day':
                 self.day_tag(st_tagged,i)
             i += 1
-            
+           
         i = 0
         for w in st_tagged:
             if w[0] == 'mth':
@@ -314,13 +346,13 @@ class natural_time_parser():
             if w[0] == 'num':
                 self.num_tag(st_tagged,i)
             i += 1
-            
+              
         i = 0
         for w in st_tagged:
             if w[0] == 'tm':
                 self.tm_tag(st_tagged,i)
             i += 1
-        
+         
         i = 0
         for w in st_tagged:
             if w[0] == 'date':
@@ -335,7 +367,9 @@ class natural_time_parser():
         if st_tagged[i][1][2] != None:
             new_year = st_tagged[i][1][2]
             if self.now.year < new_year:
+                self.byyear = new_year
                 self.dtstart = self.dtstart.replace(year=new_year,month=1,day=1,hour=0,minute=0,second=0)
+                self.until = self.dtstart.replace(month=12,day=31,hour=23,minute=59,second=59)
                 #TODO feedback when event is in the past
         st_tagged[i] = [None,None]
         return
@@ -366,7 +400,7 @@ class natural_time_parser():
         self.byhour = st_tagged[i][1][0]
         self.byminute = st_tagged[i][1][1]
         self.bysecond = st_tagged[i][1][2]
-        self.morning = st_tagged[i][1][3] if st_tagged[i][1][3] != 0 else None
+        self.morning = st_tagged[i][1][3] if st_tagged[i][1][3] != None else self.morning
         #Check that it matches correct AM/PM
         if self.morning == False and self.byhour < 12:
                 self.byhour += 12
@@ -470,7 +504,7 @@ class natural_time_parser():
                 next_what = st_tagged[i+1]
                 if next_what[0] == 'day':
                     self.dtstart = (self.now + timedelta(days=1)).replace(hour=0,minute=0,second=0)  
-                    self.count = 1                    
+                    self.until = self.dtstart + timedelta(days=7)                
                     self.byweekday = next_what[1]
                     st_tagged[i+1] = [None,None]
                 elif next_what[0] == 'mth':
@@ -480,6 +514,7 @@ class natural_time_parser():
                     #For some reason there is no byyear thing so need to change start date
                     self.byyear = self.now.year + 1
                     self.dtstart = self.dtstart.replace(day = 1, month = 1, year = self.now.year+1, hour = 0, minute = 0, second = 0)
+                    self.until = self.dtstart.replace(day=31,month=12,hour=23,minute=59,second=59)
                     st_tagged[i+1] = [None,None]
                 elif next_what[1] == 'mth':
                     date = self.now
@@ -493,7 +528,6 @@ class natural_time_parser():
                     how_many_days = 7 - date[2] #Gets the day
                     self.dtstart = (self.now + timedelta(days=how_many_days)).replace(hour=0,minute=0,second=0)
                     self.until = self.dtstart + timedelta(days=7)    
-                    self.count = None
                     st_tagged[i+1] = [None,None]
                 elif next_what[1] == 'day':
                     date = self.now + timedelta(day=1)
@@ -513,6 +547,7 @@ class natural_time_parser():
                 this_what = st_tagged[i+1]
                 if this_what[0] == 'day':               
                     self.count = 1
+                    self.until = self.now + timedelta(days=7)
                     self.byweekday = this_what[1]
                     st_tagged[i+1] = [None,None]
                 elif this_what[0] == 'mth':
@@ -521,20 +556,16 @@ class natural_time_parser():
                 elif this_what[1] == 'yr':
                     #For some reason there is no byyear thing so need to change end date
                     self.until = self.now.replace(day = 31, month = 12, hour = 23, minute = 59, second = 59)
-                    self.count = None
                     st_tagged[i+1] = [None,None]
                 elif this_what[1] == 'mth':
                     date = self.now
                     self.until = date.replace(day = calendar.monthrange(self.now.year,self.now.month)[1], hour = 23, minute = 59, second = 59)
-                    self.count = None
                     st_tagged[i+1] = [None,None]
                 elif this_what[1] == 'wk':
                     self.until = self.now + timedelta(days=7)
-                    self.count = None
                     st_tagged[i+1] = [None,None]
                 elif this_what[1] == 'day':
                     self.until = self.now.replace(hour=23,minute=59,second=59)
-                    self.count = None
                     st_tagged[i+1] = [None,None]
                 else:
                     print('Unexpected format: next/this')
