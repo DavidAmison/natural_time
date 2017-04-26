@@ -25,6 +25,9 @@ from dateutil import rrule
 from . import num_parse
 from .dates import date_finder, time_finder
 
+#import num_parse
+#from dates import date_finder, time_finder
+
 from textblob import TextBlob
 
 #A dictionary of words that can be understood for mapping words of the same meaning and grouping
@@ -116,8 +119,8 @@ _date_words = {
         'for':['len','for'],
         'untill':['len','till'],
         'till':['len','till'],
-        'a':['one','a'],
-        'an':['one','a'],
+        'a':['a','a'],
+        'an':['a','an'],
         'midnight':['num','12am'],
         'midday':['num','12pm'],
         'noon':['num','12pm'],
@@ -175,6 +178,7 @@ class natural_time_parser():
                 'at',
                 'on',
                 'one',
+                'a',
                 } 
         
            
@@ -211,6 +215,9 @@ class natural_time_parser():
             max_days = calendar.monthrange(self.byyear,self.bymonth)[1]
             if self.bymonthday > max_days and self.bymonthday != 29:
                 return []
+        elif self.bymonthday != None and self.bymonthday > 31:
+            return []
+        
         date_list = list(rrule.rrule(freq=self.freq, dtstart=self.dtstart, interval=self.interval, wkst=self.wkstart, count=self.count, until=self.until,
         bysetpos=self.bysetpos, bymonth=self.bymonth, bymonthday=self.bymonthday, byyearday=self.byyearday, byweekno=self.byweekno,
         byweekday=self.byweekday, byhour=self.byhour, byminute=self.byminute, bysecond=self.bysecond))       
@@ -351,6 +358,12 @@ class natural_time_parser():
             if w[0] == 'tm':
                 self.tm_tag(st_tagged,i)
             i += 1
+        
+        i = 0
+        for w in st_tagged:
+            if w[0] == 'rel_t':
+                self.rel_t_tag(st_tagged,i)
+            i += 1
          
         i = 0
         for w in st_tagged:
@@ -389,7 +402,22 @@ class natural_time_parser():
         st_tagged[i] = [None,None]
         
         return
-            
+    
+    
+    def rel_t_tag(self,st_tagged,i):
+        '''
+        Finds the future moment represented by the relative time
+        '''
+        time = st_tagged[i][1]
+        future = self.now + timedelta(hours=time[0],minutes=time[1],seconds=time[2])
+        self.start = future.replace(hour=0,minute=0,second=0)
+        self.bymonthday = future.day
+        self.bymonth = future.month
+        self.byhour = future.hour
+        self.byminute = future.minute
+        self.bysecond = future.second
+        st_tagged[i] = [None,None]
+        return        
          
     def tm_tag(self,st_tagged,i):
         '''
@@ -571,6 +599,33 @@ class natural_time_parser():
             except IndexError:
                 print('Unexpected format: next/this')
         elif word == 'evy':            
+            st_tagged[i] = [None,None]
+        elif word == 'in':
+            #This is likely to be followed by some kind of relative time
+            if st_tagged[i+1][0] == 'num':
+                #Now check word following for 'time' tag
+                if st_tagged[i+2][0] == 'time':
+                    in_what = st_tagged[i+2][1]
+                    #Combine into a string and check for relative time
+                    time = time_finder(st_tagged[i+1][1]+in_what)
+                    if time != None:
+                        st_tagged[i] = time
+                        st_tagged[i+1] = [None,None]
+                        st_tagged[i+2] = [None,None]
+                        return
+            elif st_tagged[i+1][0] == 'a':
+                if st_tagged[i+2][0] == 'time':
+                    in_what = st_tagged[i+2][1]
+                    #Combine into a string and check for relative time
+                    time = time_finder('1'+in_what)
+                    if time != None:
+                        st_tagged[i] = time
+                        st_tagged[i+1] = [None,None]
+                        st_tagged[i+2] = [None,None]
+                        return
+            elif st_tagged[i+1][0] == 'rel_t':
+                #Can ignore as will be picked up later
+                return
             st_tagged[i] = [None,None]
         return
     

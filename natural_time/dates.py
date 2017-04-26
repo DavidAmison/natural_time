@@ -215,6 +215,15 @@ def time_finder(st):
     matches = re.search(r'(\d+(?=(hr|hrs)\b))',st)
     if matches:
         hour = int(matches.group(1))
+    matches = re.search(r'(\d+(?=(day)\b))',st)
+    if matches:
+        hour = int(matches.group(1))*24
+    matches = re.search(r'(\d+(?=(wk)\b))',st)
+    if matches:
+        hour = int(matches.group(1))*7*24
+    matches = re.search(r'(\d+(?=(mth)\b))',st)
+    if matches:
+        hour = int(matches.group(1))*7*24*365
       
     if hour+minute+second > 0:
         return ['rel_t',[hour,minute,second]]
