@@ -9,8 +9,8 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-    name='natural_time',
-    version='0.2.0',
+    name='naturaltime',
+    version='0.3.0',
     description='Tool for understanding dates and times',
     long_description=long_description,
     url='https://github.com/DavidAmison/natural_time',
