@@ -22,11 +22,11 @@ from datetime import datetime, timedelta
 import calendar
 from dateutil import rrule
 
-from . import num_parse
-from .dates import date_finder, time_finder
+#from . import num_parse
+#from .dates import date_finder, time_finder
 
-#import num_parse
-#from dates import date_finder, time_finder
+import num_parse
+from dates import date_finder, time_finder
 
 from textblob import TextBlob
 
@@ -169,14 +169,13 @@ class natural_time_parser():
                 'mth',
                 'rel',
                 'at',
-                'on',
                 'len',
                 'num',
                 'rel_t',
                 'tm',
                 'date',
                 'at',
-                'on',
+                #'on',
                 'one',
                 'a',
                 } 
@@ -217,6 +216,8 @@ class natural_time_parser():
                 return []
         elif self.bymonthday != None and self.bymonthday > 31:
             return []
+        
+        #print(self.byyear,self.bymonth,self.bymonthday)
         
         date_list = list(rrule.rrule(freq=self.freq, dtstart=self.dtstart, interval=self.interval, wkst=self.wkstart, count=self.count, until=self.until,
         bysetpos=self.bysetpos, bymonth=self.bymonth, bymonthday=self.bymonthday, byyearday=self.byyearday, byweekno=self.byweekno,
@@ -287,7 +288,7 @@ class natural_time_parser():
                     item = ['num',str(num)+':00']
             except Exception:
                 pass
-            #Special case where the number is a day (<31 and following or previous word is a month)
+            #TODO Special case where the number 1st, 2nd, 3rd etc to understand different meanings
             
             #Check if the number is some form of time or date.
             time = time_finder(item[1])
@@ -451,6 +452,13 @@ class natural_time_parser():
             self.morning = True
         elif st_tagged[i][1] == 'pm':
             self.morning = False
+        elif st_tagged[i][1] == 'wk':
+            #Look at the following words to check for phrase such as 'week on sunday'
+            if st_tagged[i+1][0] == 'day':    
+                date = (self.now + timedelta(days=8)).replace(hour=0,minute=0,second=0)
+                self.dtstart = date
+                self.byweekday = st_tagged[i+1][1]
+                self.until = (date + timedelta(days=6)).replace(hour=23,minute=59,second=59)     
         elif st_tagged[i-1][0] == 'num':
             if st_tagged[i][1] == 'sec':
                 pass
@@ -495,17 +503,33 @@ class natural_time_parser():
         #First find out which instance of the tag we are looking at
         word = st_tagged[i][1]
         if word == 'yest':
-            pass
-        elif word == 'td':
-            #Set start date to today
-            date = self.now
+            #Check for phrase 'week yesterday'
+            if st_tagged[i-1][1] == 'wk':
+                date = self.now + timedelta(days=6)
+                st_tagged[i-1] = [None,None]
+            else:
+                date = self.now - timedelta(days=1)
+                self.dtstart = date.replace(hour=0,minute=0,second=0)
             self.byyear = date.year
             self.bymonth = date.month
-            self.bymonthday = self.day           
+            self.bymonthday = date.day
+        elif word == 'td':
+            #Check for phrase 'a week today' otherwise assume today is meant
+            if st_tagged[i-1][1] == 'wk':               
+                date = self.now + timedelta(days=7)
+                st_tagged[i-1] = [None,None]
+            else:
+                date = self.now
+            self.byyear = date.year
+            self.bymonth = date.month
+            self.bymonthday = date.day           
         elif word == 'tmrw':
-            #Set start date to tomorrow at 00:00
-            date = self.now + timedelta(days=1)
-            date.replace(hour = 0, minute = 0, second = 0)
+            #Check for phrase 'a week tomorrow' otherwise assume tomorrow is meant
+            if st_tagged[i-1][1] == 'wk':
+                date = self.now + timedelta(days=8)
+                st_tagged[i-1] = [None,None]
+            else:
+                date = self.now + timedelta(days=1)
             self.byyear = date.year
             self.bymonth = date.month
             self.bymonthday = date.day
