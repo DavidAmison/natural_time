@@ -311,66 +311,46 @@ class natural_time_parser():
             rel, len, time, day, mth, num
         '''
         #Work through each word, analysing the tag and meaning.
-        i = 0
-        for w in st_tagged:
-            #Note that once anything has been interpreted (even if by another function) it is not looked at again
+        #Note that once anything has been interpreted (even if by another function) it is not looked at again
+        for i, w in enumerate(st_tagged):     
             if w[0] == 'rel':
                 self.rel_tag(st_tagged,i)
-            i += 1
-        
-        i = 0
-        for w in st_tagged:
+
+        for i, w in enumerate(st_tagged):
             if w[0] == 'len':
-                self.len_tag(st_tagged,i)
-            i += 1
-                       
-        i = 0
-        for w in st_tagged:
+                self.len_tag(st_tagged,i)                       
+
+        for i, w in enumerate(st_tagged):
             if w[0] == 'time':
                 self.time_tag(st_tagged,i)
-            i += 1
             
-        i = 0
-        for w in st_tagged:
+        for i, w in enumerate(st_tagged):
             if w[0] == 'day':
                 self.day_tag(st_tagged,i)
-            i += 1
            
-        i = 0
-        for w in st_tagged:
+        for i, w in enumerate(st_tagged):
             if w[0] == 'mth':
-                self.mth_tag(st_tagged,i)
-            i += 1        
+                self.mth_tag(st_tagged,i)       
         
-        i = 0
-        for w in st_tagged:
+        for i, w in enumerate(st_tagged):
             if w[0] == 'at':
                 self.at_tag(st_tagged,i)
-            i += 1
 
-        i = 0
-        for w in st_tagged:
+        for i, w in enumerate(st_tagged):
             if w[0] == 'num':
                 self.num_tag(st_tagged,i)
-            i += 1
-              
-        i = 0
-        for w in st_tagged:
+
+        for i, w in enumerate(st_tagged):
             if w[0] == 'tm':
                 self.tm_tag(st_tagged,i)
-            i += 1
         
-        i = 0
-        for w in st_tagged:
+        for i, w in enumerate(st_tagged):
             if w[0] == 'rel_t':
                 self.rel_t_tag(st_tagged,i)
-            i += 1
          
-        i = 0
-        for w in st_tagged:
+        for i, w in enumerate(st_tagged):
             if w[0] == 'date':
                 self.date_tag(st_tagged,i)
-            i += 1
    
     def date_tag(self,st_tagged,i):
         '''Pretty straight forward, it's a date'''
@@ -385,7 +365,6 @@ class natural_time_parser():
                 self.until = self.dtstart.replace(month=12,day=31,hour=23,minute=59,second=59)
                 #TODO feedback when event is in the past
         st_tagged[i] = [None,None]
-        return
     
     def at_tag(self,st_tagged,i):
         '''
@@ -398,11 +377,9 @@ class natural_time_parser():
             if number < 24:
                 time = ['tm',[number,0,0,None]]
             st_tagged[i+1] = time
-        except Exception:
+        except (TypeError, IndexError, ValueError):
             pass
         st_tagged[i] = [None,None]
-        
-        return
     
     
     def rel_t_tag(self,st_tagged,i):
@@ -417,8 +394,7 @@ class natural_time_parser():
         self.byhour = future.hour
         self.byminute = future.minute
         self.bysecond = future.second
-        st_tagged[i] = [None,None]
-        return        
+        st_tagged[i] = [None,None]        
          
     def tm_tag(self,st_tagged,i):
         '''
@@ -448,36 +424,41 @@ class natural_time_parser():
         TODO get to work with the different time tags (sec, mth, wk etc)
         '''
         #First check for am or pm
-        if st_tagged[i][1] == 'am':
-            self.morning = True
-        elif st_tagged[i][1] == 'pm':
-            self.morning = False
-        elif st_tagged[i][1] == 'wk':
-            #Look at the following words to check for phrase such as 'week on sunday'
-            if st_tagged[i+1][0] == 'day':    
-                date = (self.now + timedelta(days=8)).replace(hour=0,minute=0,second=0)
-                self.dtstart = date
-                self.byweekday = st_tagged[i+1][1]
-                self.until = (date + timedelta(days=6)).replace(hour=23,minute=59,second=59)     
-        elif st_tagged[i-1][0] == 'num':
-            if st_tagged[i][1] == 'sec':
-                pass
-            elif st_tagged[i][1] == 'min':
-                pass
-            elif st_tagged[i][1] == 'hr':
-                pass
-            elif st_tagged[i][1] == 'day':
-                pass
+        try:
+            if st_tagged[i][1] == 'am':
+                self.morning = True
+            elif st_tagged[i][1] == 'pm':
+                self.morning = False
             elif st_tagged[i][1] == 'wk':
-                pass
-            elif st_tagged[i][1] == 'mth':
-                pass
-            elif st_tagged[i][1] == 'yr':
-                pass
-            st_tagged[i] = [None,None]
-            st_tagged[i-1] = [None,None]
+                #Look at the following words to check for phrase such as 'week on sunday'
+                try:
+                    if st_tagged[i+1][0] == 'day':    
+                        date = (self.now + timedelta(days=8)).replace(hour=0,minute=0,second=0)
+                        self.dtstart = date
+                        self.byweekday = st_tagged[i+1][1]
+                        self.until = (date + timedelta(days=6)).replace(hour=23,minute=59,second=59)
+                except IndexError:
+                    pass
+            elif st_tagged[i-1][0] == 'num':
+                if st_tagged[i][1] == 'sec':
+                    pass
+                elif st_tagged[i][1] == 'min':
+                    pass
+                elif st_tagged[i][1] == 'hr':
+                    pass
+                elif st_tagged[i][1] == 'day':
+                    pass
+                elif st_tagged[i][1] == 'wk':
+                    pass
+                elif st_tagged[i][1] == 'mth':
+                    pass
+                elif st_tagged[i][1] == 'yr':
+                    pass
+                st_tagged[i] = [None,None]
+                st_tagged[i-1] = [None,None] 
+        except IndexError:
+            pass
         st_tagged[i] = [None,None]
-        return
     
     def day_tag(self,st_tagged,i):
         '''
@@ -504,31 +485,41 @@ class natural_time_parser():
         word = st_tagged[i][1]
         if word == 'yest':
             #Check for phrase 'week yesterday'
-            if st_tagged[i-1][1] == 'wk':
-                date = self.now + timedelta(days=6)
-                st_tagged[i-1] = [None,None]
-            else:
+            try:
+                if st_tagged[i-1][1] == 'wk':
+                    date = self.now + timedelta(days=6)
+                    st_tagged[i-1] = [None,None]
+                else:
+                    date = self.now - timedelta(days=1)
+                    self.dtstart = date.replace(hour=0,minute=0,second=0)                
+            except IndexError:
                 date = self.now - timedelta(days=1)
-                self.dtstart = date.replace(hour=0,minute=0,second=0)
+                self.dtstart = date.replace(hour=0,minute=0,second=0)            
             self.byyear = date.year
             self.bymonth = date.month
-            self.bymonthday = date.day
+            self.bymonthday = date.day    
         elif word == 'td':
             #Check for phrase 'a week today' otherwise assume today is meant
-            if st_tagged[i-1][1] == 'wk':               
-                date = self.now + timedelta(days=7)
-                st_tagged[i-1] = [None,None]
-            else:
+            try:
+                if st_tagged[i-1][1] == 'wk':               
+                    date = self.now + timedelta(days=7)
+                    st_tagged[i-1] = [None,None]
+                else:
+                    date = self.now
+            except IndexError:
                 date = self.now
             self.byyear = date.year
             self.bymonth = date.month
             self.bymonthday = date.day           
         elif word == 'tmrw':
             #Check for phrase 'a week tomorrow' otherwise assume tomorrow is meant
-            if st_tagged[i-1][1] == 'wk':
-                date = self.now + timedelta(days=8)
-                st_tagged[i-1] = [None,None]
-            else:
+            try:
+                if st_tagged[i-1][1] == 'wk':
+                    date = self.now + timedelta(days=8)
+                    st_tagged[i-1] = [None,None]
+                else:
+                    date = self.now + timedelta(days=1)
+            except IndexError:
                 date = self.now + timedelta(days=1)
             self.byyear = date.year
             self.bymonth = date.month
@@ -587,9 +578,9 @@ class natural_time_parser():
                     self.byday = date.weekday()
                     st_tagged[i+1] = [None,None]
                 else:
-                    print('Unexpected format: next/this')
+                    print('Unexpected format for next: unidentified word follows')
             except IndexError:
-                print('Unexpected format: next/this')
+                print('Unexpected format for next: no word follows')
             
             st_tagged[i] = [None,None] 
         elif word == 'this':
@@ -619,37 +610,40 @@ class natural_time_parser():
                     self.until = self.now.replace(hour=23,minute=59,second=59)
                     st_tagged[i+1] = [None,None]
                 else:
-                    print('Unexpected format: next/this')
+                    print('Unexpected format for this: unidentified word follows')
             except IndexError:
-                print('Unexpected format: next/this')
+                print('Unexpected format for this: no word follows')
         elif word == 'evy':            
             st_tagged[i] = [None,None]
         elif word == 'in':
             #This is likely to be followed by some kind of relative time
-            if st_tagged[i+1][0] == 'num':
-                #Now check word following for 'time' tag
-                if st_tagged[i+2][0] == 'time':
-                    in_what = st_tagged[i+2][1]
-                    #Combine into a string and check for relative time
-                    time = time_finder(st_tagged[i+1][1]+in_what)
-                    if time != None:
-                        st_tagged[i] = time
-                        st_tagged[i+1] = [None,None]
-                        st_tagged[i+2] = [None,None]
-                        return
-            elif st_tagged[i+1][0] == 'a':
-                if st_tagged[i+2][0] == 'time':
-                    in_what = st_tagged[i+2][1]
-                    #Combine into a string and check for relative time
-                    time = time_finder('1'+in_what)
-                    if time != None:
-                        st_tagged[i] = time
-                        st_tagged[i+1] = [None,None]
-                        st_tagged[i+2] = [None,None]
-                        return
-            elif st_tagged[i+1][0] == 'rel_t':
-                #Can ignore as will be picked up later
-                return
+            try:
+                if st_tagged[i+1][0] == 'num':
+                    #Now check word following for 'time' tag
+                    if st_tagged[i+2][0] == 'time':
+                        in_what = st_tagged[i+2][1]
+                        #Combine into a string and check for relative time
+                        time = time_finder(st_tagged[i+1][1]+in_what)
+                        if time != None:
+                            st_tagged[i] = time
+                            st_tagged[i+1] = [None,None]
+                            st_tagged[i+2] = [None,None]
+                            return
+                elif st_tagged[i+1][0] == 'a':
+                    if st_tagged[i+2][0] == 'time':
+                        in_what = st_tagged[i+2][1]
+                        #Combine into a string and check for relative time
+                        time = time_finder('1'+in_what)
+                        if time != None:
+                            st_tagged[i] = time
+                            st_tagged[i+1] = [None,None]
+                            st_tagged[i+2] = [None,None]
+                            return
+                elif st_tagged[i+1][0] == 'rel_t':
+                    #Can ignore as will be picked up later
+                    return
+            except IndexError:
+                pass
             st_tagged[i] = [None,None]
         return
     
@@ -668,50 +662,58 @@ class natural_time_parser():
         word = st_tagged[i][1]
         if word == 'for':
             #TODO (sort out later)
-            if st_tagged[i+1][0] == 'num': 
-                n = int(st_tagged[i+1][1])
-                if st_tagged[i+2][0] == 'time':
-                    if st_tagged[i+2][1] == 'sec':
-                        self.length = n
-                        st_tagged[i+2] = [None,None]
-                    elif st_tagged[i+2][1] == 'min':
-                        self.length = n * 60
-                        st_tagged[i+2] = [None,None]
-                    elif st_tagged[i+2][1] == 'hr':
+            try:
+                if st_tagged[i+1][0] == 'num': 
+                    n = int(st_tagged[i+1][1])
+                    try:
+                        if st_tagged[i+2][0] == 'time':
+                            if st_tagged[i+2][1] == 'sec':
+                                self.length = n
+                                st_tagged[i+2] = [None,None]
+                            elif st_tagged[i+2][1] == 'min':
+                                self.length = n * 60
+                                st_tagged[i+2] = [None,None]
+                            elif st_tagged[i+2][1] == 'hr':
+                                self.length = n * 3600
+                                st_tagged[i+2] = [None,None]
+                        else:
+                            self.length = n * 3600
+                    except IndexError:
                         self.length = n * 3600
-                        st_tagged[i+2] = [None,None]
-                else:
-                    #Assume hours intended
-                    self.length = n * 3600
-            elif st_tagged[i+1][0] == 'rel_t':
-                #Convert relative time to only seconds
-                self.length = st_tagged[i+1][1][0]*3600 + st_tagged[i+1][1][1]*60 + st_tagged[i+1][1][2]
-                pass
-            elif st_tagged[i+1][0] == 'one':
-                #Check the unit of time the user is intending (assume hours otherwise)
-                if st_tagged[i+2][0] == 'time':
-                    if st_tagged[i+2][1] == 'sec':
-                        self.length = n
-                        st_tagged[i+2] = [None,None]
-                    elif st_tagged[i+2][1] == 'min':
-                        self.length = n * 60
-                        st_tagged[i+2] = [None,None]
-                    elif st_tagged[i+2][1] == 'hr':
+                            
+                elif st_tagged[i+1][0] == 'rel_t':
+                    #Convert relative time to only seconds
+                    self.length = st_tagged[i+1][1][0]*3600 + st_tagged[i+1][1][1]*60 + st_tagged[i+1][1][2]
+                elif st_tagged[i+1][0] == 'one':
+                    #Check the unit of time the user is intending (assume hours otherwise)
+                    try:
+                        if st_tagged[i+2][0] == 'time':
+                            if st_tagged[i+2][1] == 'sec':
+                                self.length = n
+                                st_tagged[i+2] = [None,None]
+                            elif st_tagged[i+2][1] == 'min':
+                                self.length = n * 60
+                                st_tagged[i+2] = [None,None]
+                            elif st_tagged[i+2][1] == 'hr':
+                                self.length = n * 3600
+                                st_tagged[i+2] = [None,None]
+                        else:
+                            #Assume hours intended
+                            self.length = n * 3600
+                    except IndexError:
                         self.length = n * 3600
-                        st_tagged[i+2] = [None,None]
-                else:
-                    #Assume hours intended
-                    self.length = n * 3600
-                pass
-            
-            st_tagged[i+1] = [None,None]                
                 
+                st_tagged[i+1] = [None,None]  
+            except IndexError:
+                pass               
         elif word == 'till':
             #TODO add functionality to consider number before and after
             st_tagged[i] = [None,None]
-            if st_tagged[i+1][0] == 'num':     
+            try:
+                if st_tagged[i+1][0] == 'num':     
+                    pass
+                elif st_tagged[i+1][0] == 'tm':
+                    pass
+            except IndexError:
                 pass
-            elif st_tagged[i+1][0] == 'tm':
-                pass
-        
         st_tagged[i] = [None,None]
