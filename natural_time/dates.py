@@ -223,6 +223,9 @@ def time_finder(st):
         hour = int(matches.group(1))*7*24
     matches = re.search(r'(\d+(?=(mth)\b))',st)
     if matches:
+        hour = int(matches.group(1))*24*30
+    matches = re.search(r'(\d+(?=(yr)\b))',st)
+    if matches:
         hour = int(matches.group(1))*7*24*365
       
     if hour+minute+second > 0:

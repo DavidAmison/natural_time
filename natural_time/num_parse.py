@@ -9,7 +9,7 @@ Converts written numbers to integers: Currenlty designed only for positive whole
 #from textblob import TextBlob
 
 
-d_numbers = {        
+d_numbers = {
         'eleven':11,
         'twelve':12,
         'thirteen':13,
@@ -106,16 +106,16 @@ def convert(s):
             hu = i
             break
         i += 1
-    
+
     total = 0
-    total += convert_prefix(numbers[0:mi]) * 1000000 if mi>-1 else 0
-    total += convert_prefix(numbers[mi+1:th]) * 1000 if th>-1 else 0
-    total += convert_prefix(numbers[th+1:hu]) * 100 if hu>-1 else 0
+    total += convert_prefix(numbers[0:mi]) * 1000000 if mi > -1 else 0
+    total += convert_prefix(numbers[mi+1:th]) * 1000 if th > -1 else 0
+    total += convert_prefix(numbers[th+1:hu]) * 100 if hu > -1 else 0
     total += convert_prefix(numbers[hu+1:])
-    
+
     return total
 
-def convert_prefix(numbers):       
+def convert_prefix(numbers):
     total = 0
     last = 0
     for num in numbers:
@@ -127,21 +127,21 @@ def convert_prefix(numbers):
             else:
                 total -= last
                 last = num*last
-                total += last            
+                total += last
         else:
             total += num
-            last = num 
-            
-    return total  
-    
+            last = num
+
+    return total
+
 #Read character by character from the right until something matches, store that number
-#empty string and continue from that point. 
+#empty string and continue from that point.
 
 def extract_num(s):
     '''
     Returns all numbers in a string as a list in the order that they appear.
     Note that it does not interpret the meaning but simply writes the numbers: e.g
-    one-hundred and ninety nine will return [1,100,90,9]       
+    one-hundred and ninety nine will return [1,100,90,9]
     '''
     check_str = ''
     numbers = []
@@ -159,9 +159,9 @@ def extract_num(s):
                 numbers.insert(0,d_positions[num])
                 check_str = ''
                 break
-            
+
     return numbers
-    
+
 def convert_num(s):
     '''
     Returns the input string with all numbers converted to digit format
@@ -175,7 +175,7 @@ def convert_num(s):
         check_str = ''
         numbers = []
         positional = False
-        
+
         for c in reversed(w):
             check_str = c + check_str
             for num in d_numbers:
@@ -193,29 +193,29 @@ def convert_num(s):
         n = 0
         if len(numbers) > 1:
             if numbers[0] > numbers[1]:
-                n = numbers[0]+numbers[1]                
+                n = numbers[0]+numbers[1]
             else:
                 n = numbers[0]*numbers[1]
         elif len(numbers) == 0:
             n = w
-        elif numbers[0] < previous_num:            
+        elif numbers[0] < previous_num:
             n += previous_num + numbers[0]
         elif previous_num == 0:
             n = numbers[0]
         else:
             n = previous_num * numbers[0]
-        
+
         #Delete the previous number if this value includes it
         if previous_num > 0 and isinstance(n,int):
             del output_w[-1]
-            
-        #Add the word into the list (adjusting if it is a positional number)    
+
+        #Add the word into the list (adjusting if it is a positional number)
         output_w.append(str(n)+'st') if positional==True else output_w.append(str(n))
-            
+
         try:
             previous_num = int(n)
         except ValueError:
             previous_num = 0
-    
-    output = ' '.join(str(w) for w in output_w)   
-    return output      
+
+    output = ' '.join(str(w) for w in output_w)
+    return output
