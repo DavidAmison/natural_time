@@ -6,7 +6,6 @@ Converts written numbers to integers: Currenlty designed only for positive whole
 
 @author: David
 """
-#from textblob import TextBlob
 
 
 d_numbers = {

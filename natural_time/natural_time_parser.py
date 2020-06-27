@@ -22,13 +22,8 @@ from datetime import datetime, timedelta
 import calendar
 from dateutil import rrule
 
-# from . import num_parse
-# from .dates import date_finder, time_finder
-
-import num_parse
-from dates import date_finder, time_finder
-
-from textblob import TextBlob
+from natural_time import num_parse
+from natural_time.dates import date_finder, time_finder
 
 #A dictionary of words that can be understood for mapping words of the same meaning and grouping
 _date_words = {
@@ -188,8 +183,7 @@ class natural_time_parser():
         s = s.lower()
         # Convert all numerical text to numbers (one => 1, second => 2nd etc
         s = num_parse.convert_num(s)
-        tb = TextBlob(s)
-        words = tb.words
+        words = s.split()
         # Map and group the words using _date_words
         date_mapped = [(_date_words[w] if w in _date_words else w) for w in words]
         # Remove all non-important words and tag numbers
