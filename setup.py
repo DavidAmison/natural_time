@@ -1,10 +1,11 @@
-from distutils.core import setup
+from setuptools import setup
 
 setup(
     name='natural_time',
-    version='1.1.9',
+    version='1.2.0',
     licence='MIT',
     description='Tool for understanding dates and times',
+    long_description=open('README.md').read(),
     url='https://github.com/DavidAmison/natural_time',
     keywords=['time', 'date', 'natural', 'interpret'],
     author='David Amison',

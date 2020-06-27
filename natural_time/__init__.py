@@ -1,4 +1,4 @@
-from natural_time import natural_time_parser as ntp
+from .natural_time_parser import natural_time_parser as ntp
 
 def natural_time(st):
-    return ntp.natural_time_parser().parse_string(st)
+    return ntp().parse_string(st)
