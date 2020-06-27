@@ -22,11 +22,11 @@ from datetime import datetime, timedelta
 import calendar
 from dateutil import rrule
 
-from . import num_parse
-from .dates import date_finder, time_finder
+# from . import num_parse
+# from .dates import date_finder, time_finder
 
-# import num_parse
-# from dates import date_finder, time_finder
+import num_parse
+from dates import date_finder, time_finder
 
 from textblob import TextBlob
 
