@@ -8,7 +8,7 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='natural_time',
-    version='1.1.8',
+    version='1.1.9',
     description='Tool for understanding dates and times',
     long_description=long_description,
     url='https://github.com/DavidAmison/natural_time',

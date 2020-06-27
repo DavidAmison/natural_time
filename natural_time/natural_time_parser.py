@@ -22,11 +22,11 @@ from datetime import datetime, timedelta
 import calendar
 from dateutil import rrule
 
-# from . import num_parse
-# from .dates import date_finder, time_finder
+from . import num_parse
+from .dates import date_finder, time_finder
 
-import num_parse
-from dates import date_finder, time_finder
+# import num_parse
+# from dates import date_finder, time_finder
 
 from textblob import TextBlob
 
@@ -107,6 +107,7 @@ _date_words = {
         'dec':['mth',12],
         'yesterday':['rel','yest'],
         'today':['rel','td'],
+        'now':['rel','now'],
         'tomorrow':['rel','tmrw'],
         'in':['rel','in'],
         'last':['rel','last'],
@@ -208,9 +209,9 @@ class natural_time_parser():
             # Which year are we probably looking at
             if self.byyear == None:
                 if self.now.month > self.bymonth or (self.now.month == self.bymonth and self.bymonthday < self.now.day):
-                    self.byyear = 2018
+                    self.byyear = self.now.year + 1
                 else:
-                    self.byyear = 2017
+                    self.byyear = self.now.year
             max_days = calendar.monthrange(self.byyear,self.bymonth)[1]
             if self.bymonthday > max_days and self.bymonthday != 29:
                 return []
@@ -315,7 +316,7 @@ class natural_time_parser():
         '''
         Tries to understand the meaning of a the phrase in relation to dates and time.
         Tags are interpreted in the following order:
-            rel, len, time, day, mth, num
+            rel, len, time, day, mth, num, at, num, tm, rel_t, date
         '''
         # Work through each word, analysing the tag and meaning.
         # Note that once anything has been interpreted (even if by another function) it is not looked at again
@@ -394,7 +395,45 @@ class natural_time_parser():
         Finds the future moment represented by the relative time
         '''
         time = st_tagged[i][1]
-        future = self.now + timedelta(hours=time[0],minutes=time[1],seconds=time[2])
+        # This is close to the last tag checked so we want to perform a delta operation
+        # from whatever date has been parsed out so far
+        current = self.now
+        if self.byyear != None:
+            current = current.replace(year = self.byyear)
+        if self.bymonth != None:
+            current = current.replace(month = self.bymonth)
+        if self.bymonthday != None:
+            current = current.replace(day = self.bymonthday)
+        if self.byhour != None:
+            current = current.replace(hour = self.byhour)
+        if self.byminute != None:
+            current = current.replace(minute = self.byminute)
+        if self.bysecond != None:
+            current = current.replace(second = self.bysecond)
+
+        delta_years = time[0]
+        delta_months = time[1]
+        delta_seconds = time[2]
+
+        # Convert excess months to years
+        if delta_months >= 12:
+            delta_years += int(delta_months/12)
+            delta_months = delta_months % 12
+        
+        # Add the delta_years
+        future = current
+        future = future.replace(year = future.year + delta_years)
+
+        # Add the delta_months
+        if current.month + delta_months > 12:
+            future = future.replace(month = future.month + delta_months - 12)
+            future = future.replace(year = future.year + 1)
+        else:
+            future = future.replace(month = future.month + delta_months)
+        
+        # Add the delta_seconds
+        future = future + timedelta(seconds=delta_seconds)
+
         self.start = future.replace(hour=0,minute=0,second=0)
         self.bymonthday = future.day
         self.bymonth = future.month
@@ -449,20 +488,21 @@ class natural_time_parser():
                     pass
             if st_tagged[i-1][0] == 'num':
                 num = int(st_tagged[i-1][1])
+                # rel_t has format [years, months, seconds]
                 if st_tagged[i][1] == 'sec':
                     new_tag = ['rel_t', [0, 0, num]]
                 elif st_tagged[i][1] == 'min':
-                    new_tag = ['rel_t', [0, num, 0]]
+                    new_tag = ['rel_t', [0, 0, num*60]]
                 elif st_tagged[i][1] == 'hr':
-                    new_tag = ['rel_t', [num, 0, 0]]
+                    new_tag = ['rel_t', [0, 0, num*3600]]
                 elif st_tagged[i][1] == 'day':
-                    new_tag = ['rel_t', [num*24, 0, 0]]
+                    new_tag = ['rel_t', [0, 0, num*3600*24]]
                 elif st_tagged[i][1] == 'wk':
-                    new_tag = ['rel_t', [num*24*7, 0, 0]]
+                    new_tag = ['rel_t', [0, 0, num*3600*24*7]]
                 elif st_tagged[i][1] == 'mth':
-                    new_tag = ['rel_t', [num*24*31, 0, 0]]
+                    new_tag = ['rel_t', [0, num, 0]]
                 elif st_tagged[i][1] == 'yr':
-                    new_tag = ['rel_t', [num*24*365, 0, 0]]
+                    new_tag = ['rel_t', [num, 0, 0]]
                 st_tagged[i-1] = [None, None]
         except IndexError:
             pass
@@ -485,50 +525,33 @@ class natural_time_parser():
     def rel_tag(self, st_tagged, i):
         '''
         Interprets items with the relative (rel) tag
-        Words included in this tag are: yesterday (yest), today (td), tomorrow (tmrw)
+        Words included in this tag are: yesterday (yest), today (td), now (now), tomorrow (tmrw)
         last (last), this (this), next (nxt), every (evy)
         '''
         # TODO case where word is first, second, third etc (lost as a number)
         # First find out which instance of the tag we are looking at
         word = st_tagged[i][1]
         if word == 'yest':
-            #Check for phrase 'week yesterday'
-            try:
-                if st_tagged[i-1][1] == 'wk':
-                    date = self.now + timedelta(days=6)
-                    st_tagged[i-1] = [None, None]
-                else:
-                    date = self.now - timedelta(days=1)
-                    self.dtstart = date.replace(hour=0, minute=0, second=0)
-            except IndexError:
-                date = self.now - timedelta(days=1)
-                self.dtstart = date.replace(hour=0, minute=0, second=0)
+            #Check for phrase 'week yesterday', 'month yesterday', 'year yesterday' etc.
+            date = self.now - timedelta(days=1)
+            self.dtstart = date.replace(hour=0, minute=0, second=0)
             self.byyear = date.year
             self.bymonth = date.month
             self.bymonthday = date.day
         elif word == 'td':
             #Check for phrase 'a week today' otherwise assume today is meant
-            try:
-                if st_tagged[i-1][1] == 'wk':
-                    date = self.now + timedelta(days=7)
-                    st_tagged[i-1] = [None, None]
-                else:
-                    date = self.now
-            except IndexError:
-                date = self.now
+            date = self.now
+            self.byyear = date.year
+            self.bymonth = date.month
+            self.bymonthday = date.day
+        elif word == 'now':
+            date = self.now
             self.byyear = date.year
             self.bymonth = date.month
             self.bymonthday = date.day
         elif word == 'tmrw':
             #Check for phrase 'a week tomorrow' otherwise assume tomorrow is meant
-            try:
-                if st_tagged[i-1][1] == 'wk':
-                    date = self.now + timedelta(days=8)
-                    st_tagged[i-1] = [None, None]
-                else:
-                    date = self.now + timedelta(days=1)
-            except IndexError:
-                date = self.now + timedelta(days=1)
+            date = self.now + timedelta(days=1)
             self.byyear = date.year
             self.bymonth = date.month
             self.bymonthday = date.day
@@ -731,3 +754,11 @@ class natural_time_parser():
             except IndexError:
                 pass
         st_tagged[i] = [None,None]
+
+    def printvalues(self):
+        print("Year: ", self.byyear)
+        print("Month: ", self.bymonth)
+        print("Monthday: ", self.bymonthday)
+        print("Hour: ", self.byhour)
+        print("Minute: ", self.byminute)
+        print("Second: ", self.bysecond)
